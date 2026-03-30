@@ -64,7 +64,7 @@ $ task e2e-tests
 - Change helm chart to use correct deployment port, health check configuration.
 - Remove `cmd/example` application and adds your own. Don't forgot to update Dockerfile.
 - Update `example_kind_test.go` to check for more details. Maybe you should run a client to verify what's needed.
-- Use `task dev-build`, `task dev-build`, to deploy in your local kind cluster and test your changes.
+- Use `task dev-create` and `task dev-build`, to deploy in your local kind cluster and test your changes.
 
 ## Usage
 
