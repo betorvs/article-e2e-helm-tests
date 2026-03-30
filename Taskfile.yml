@@ -1,0 +1,79 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    desc: print this content
+    cmds:
+      - task -a
+    silent: true
+
+  dependencies-install-mac:
+    desc: Install dependencies
+    cmds:
+      - brew install kind
+      - brew install helm
+      - brew install tilt-dev/tap/ctlptl
+
+  init:
+    desc: init go and helm chart (run only once)
+    cmds:
+      - go mod init example-e2e-kind
+      - mkdir -p charts
+      - helm create charts/example-e2e-kind
+
+  clean:
+    desc: clean helm chart 
+    cmds:
+      - rm -rf charts/example-e2e-kind
+      - rmdir charts
+
+  tidy:
+    desc: update dependencies and tidy go modules
+    cmds:
+      - go get -u -v ./...
+      - go mod tidy
+
+  dev-create:
+    desc: create a kind cluster (change to kind context)
+    aliases:
+      - create
+    cmds:
+      - ctlptl create registry ctlptl-registry --port=5005
+      - ctlptl create cluster kind --registry=ctlptl-registry
+      - kubectl config use-context kind-kind
+      - kubectl create namespace example-e2e-kind
+
+  dev-delete:
+    desc: delete a kind cluster
+    aliases:
+      - delete
+    cmds:
+      - ctlptl delete cluster kind
+      - ctlptl delete registry ctlptl-registry
+
+  dev-build:
+    desc: Build all docker images and push to kind registry (change to kind context)
+    aliases:
+      - build
+    cmds:
+      - docker build -t example-e2e-kind:{{.VERSION}} -f Dockerfile .
+      - docker tag example-e2e-kind:{{.VERSION}} localhost:5005/example-e2e-kind:{{.VERSION}}
+      - docker push localhost:5005/example-e2e-kind:{{.VERSION}}
+      - kubectl config use-context kind-kind
+      - helm template example-e2e-kind charts/example-e2e-kind --set image.tag={{.VERSION}} --set image.repository="ctlptl-registry:5000/example-e2e-kind"  --namespace example-e2e-kind | kubectl apply -n example-e2e-kind -f -
+    vars:
+      VERSION:
+        sh: openssl rand -hex 4
+
+  e2e-tests:
+    desc: Run the end-to-end and unit tests using go (change to kind temporary context)
+    aliases:
+      - test
+    cmds:
+      - docker build -t example-e2e-kind:{{.VERSION}} -f Dockerfile .
+      - VERSION={{ .VERSION }} go test -count=1 -timeout=10m -v ./...
+    vars:
+      VERSION:
+        sh: openssl rand -hex 4
